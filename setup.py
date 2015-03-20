@@ -28,6 +28,7 @@ setup(name='pypot',
           'remote-robot': ['zerorpc'],
           'square-signal': ['scipy'],
           'camera': []  # Extras require: opencv (not a PyPi packet)
+          'tags-tracking': ['hampy']
       },
 
       entry_points={
