@@ -8,6 +8,7 @@ from ..utils.stoppablethread import StoppableLoopThread
 
 
 class MinimumJerkTrajectory(object):
+
     def __init__(self, initial, final, duration, init_vel=0.0, init_acc=0.0, final_vel=0.0, final_acc=0.0):
         self.initial = initial
         self.final = final
@@ -28,13 +29,16 @@ class MinimumJerkTrajectory(object):
         a2 = self.init_acc / 2.0
         d = lambda x: self.duration ** x
 
-        A = numpy.array([[d(3), d(4), d(5)], [3 * d(2), 4 * d(3), 5 * d(4)], [6 * d(1), 12 * d(2), 20 * d(3)]])
-        B = numpy.array([self.final - a0 - (a1 * d(1)) - (a2 * d(2)), self.final_vel - a1 - (2 * a2 * d(1)), self.final_acc - (2 * a2)])
+        A = numpy.array(
+            [[d(3), d(4), d(5)], [3 * d(2), 4 * d(3), 5 * d(4)], [6 * d(1), 12 * d(2), 20 * d(3)]])
+        B = numpy.array([self.final - a0 - (a1 * d(1)) - (a2 * d(2)),
+                         self.final_vel - a1 - (2 * a2 * d(1)), self.final_acc - (2 * a2)])
         X = numpy.linalg.solve(A, B)
 
         self.other_gen = None
 
-        self._mylambda = lambda x: a0 + a1 * x + a2 * x ** 2 + X[0] * x ** 3 + X[1] * x ** 4 + X[2] * x ** 5
+        self._mylambda = lambda x: a0 + a1 * x + a2 * x ** 2 + \
+            X[0] * x ** 3 + X[1] * x ** 4 + X[2] * x ** 5
 
         self._generators = [self._mylambda]
 
@@ -66,6 +70,7 @@ class MinimumJerkTrajectory(object):
 
 
 class GotoMinJerk(StoppableLoopThread):
+
     def __init__(self, motor, position, duration, frequency=50):
         StoppableLoopThread.__init__(self, frequency)
 
@@ -74,7 +79,14 @@ class GotoMinJerk(StoppableLoopThread):
         self.duration = duration  # seconds
 
     def setup(self):
-        self.trajs = MinimumJerkTrajectory(self.motor.present_position, self.goal, self.duration).get_generator()
+        # Avoid LialgError  Singular matrix line 33
+        if self.duration == 0:
+            self.motor.goal_position = self.goal
+            self.stop()
+            return
+
+        self.trajs = MinimumJerkTrajectory(
+            self.motor.present_position, self.goal, self.duration).get_generator()
         self.t0 = time.time()
 
     def update(self):
@@ -85,5 +97,8 @@ class GotoMinJerk(StoppableLoopThread):
         self.motor.goal_position = self.trajs(self.elapsed_time)
 
     @property
+    def elapsed_time(self):
+        return time.time() - self.t0
+
     def elapsed_time(self):
         return time.time() - self.t0
